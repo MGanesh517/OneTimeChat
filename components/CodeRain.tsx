@@ -25,7 +25,7 @@ export default function CodeRain() {
         }
 
         function draw() {
-            if (!ctx) return
+            if (!ctx || !canvas) return
             
             ctx.fillStyle = 'rgba(5, 5, 5, 0.05)'
             ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -50,6 +50,7 @@ export default function CodeRain() {
         const interval = setInterval(draw, 50)
 
         const handleResize = () => {
+            if (!canvas) return
             canvas.width = window.innerWidth
             canvas.height = window.innerHeight
         }
