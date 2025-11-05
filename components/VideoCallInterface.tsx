@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Video, VideoOff, Mic, MicOff, Maximize2, X } from 'lucide-react'
+import { Video, VideoOff, Mic, MicOff, Maximize2, X, AlertCircle } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import { useSocket } from '@/contexts/SocketContext'
@@ -20,18 +20,59 @@ export default function VideoCallInterface() {
         stopLocalStream,
         toggleVideo,
         toggleAudio,
+        checkPermissions,
     } = useWebRTC(roomId)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [hasStarted, setHasStarted] = useState(false)
+    const [permissionError, setPermissionError] = useState<string | null>(null)
+    const [isRequestingPermission, setIsRequestingPermission] = useState(false)
 
+    // Check permissions when component mounts (when user switches to video tab)
     useEffect(() => {
-        if (isConnected && !hasStarted) {
-            startLocalStream()
-            setHasStarted(true)
+        const checkAndStart = async () => {
+            if (!isConnected) return
+            
+            try {
+                setIsRequestingPermission(true)
+                setPermissionError(null)
+                
+                // Check permissions first
+                const permissions = await checkPermissions()
+                
+                // If already granted, start stream without asking
+                if (permissions.camera === 'granted' && permissions.microphone === 'granted') {
+                    console.log('✅ Permissions already granted, starting stream...')
+                    await startLocalStream()
+                    setHasStarted(true)
+                    setIsRequestingPermission(false)
+                    return
+                }
+                
+                // If denied, show error
+                if (permissions.camera === 'denied' || permissions.microphone === 'denied') {
+                    setPermissionError('Camera or microphone permission denied. Please enable in browser settings.')
+                    setIsRequestingPermission(false)
+                    return
+                }
+                
+                // If prompt, request permission (browser will ask)
+                console.log('📹 Requesting camera and microphone permissions...')
+                await startLocalStream()
+                setHasStarted(true)
+                setIsRequestingPermission(false)
+            } catch (error: any) {
+                console.error('Error starting video stream:', error)
+                setPermissionError(error.message || 'Failed to access camera/microphone. Please check permissions.')
+                setIsRequestingPermission(false)
+            }
         }
+
+        checkAndStart()
+
         return () => {
             if (hasStarted) {
                 stopLocalStream()
+                setHasStarted(false)
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,11 +95,48 @@ export default function VideoCallInterface() {
                 {!remoteVideoRef.current?.srcObject && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="text-center">
-                            <div className="w-24 h-24 rounded-full bg-hacker-green/20 border-4 border-hacker-green mx-auto mb-4 flex items-center justify-center animate-pulse-green">
-                                <Video className="text-hacker-green" size={40} />
-                            </div>
-                            <p className="text-hacker-text font-mono">Waiting for connection...</p>
-                            <p className="text-xs text-hacker-green/50 mt-2">Share this room ID to connect</p>
+                            {isRequestingPermission ? (
+                                <>
+                                    <div className="w-24 h-24 rounded-full bg-hacker-green/20 border-4 border-hacker-green mx-auto mb-4 flex items-center justify-center animate-pulse-green">
+                                        <Video className="text-hacker-green" size={40} />
+                                    </div>
+                                    <p className="text-hacker-text font-mono">Requesting camera/microphone access...</p>
+                                    <p className="text-xs text-hacker-green/50 mt-2">Please allow permissions when prompted</p>
+                                </>
+                            ) : permissionError ? (
+                                <>
+                                    <div className="w-24 h-24 rounded-full bg-hacker-error/20 border-4 border-hacker-error mx-auto mb-4 flex items-center justify-center">
+                                        <AlertCircle className="text-hacker-error" size={40} />
+                                    </div>
+                                    <p className="text-hacker-text font-mono mb-2">Permission Error</p>
+                                    <p className="text-xs text-hacker-error/70 mt-2 max-w-md mx-auto">{permissionError}</p>
+                                    <button
+                                        onClick={async () => {
+                                            setPermissionError(null)
+                                            setIsRequestingPermission(true)
+                                            try {
+                                                await startLocalStream()
+                                                setHasStarted(true)
+                                                setIsRequestingPermission(false)
+                                            } catch (error: any) {
+                                                setPermissionError(error.message || 'Failed to access camera/microphone.')
+                                                setIsRequestingPermission(false)
+                                            }
+                                        }}
+                                        className="mt-4 px-4 py-2 bg-hacker-green/20 border border-hacker-green text-hacker-green hover:bg-hacker-green/30 transition-all text-sm font-mono"
+                                    >
+                                        Retry
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-24 h-24 rounded-full bg-hacker-green/20 border-4 border-hacker-green mx-auto mb-4 flex items-center justify-center animate-pulse-green">
+                                        <Video className="text-hacker-green" size={40} />
+                                    </div>
+                                    <p className="text-hacker-text font-mono">Waiting for connection...</p>
+                                    <p className="text-xs text-hacker-green/50 mt-2">Share this room ID to connect</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

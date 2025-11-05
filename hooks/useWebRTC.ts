@@ -81,9 +81,47 @@ export function useWebRTC(roomId: string) {
     }
   }, [socket, isConnected, roomId])
 
+  // Check permissions before requesting media
+  const checkPermissions = async (): Promise<{ camera: PermissionState; microphone: PermissionState }> => {
+    const permissions: { camera: PermissionState; microphone: PermissionState } = {
+      camera: 'prompt',
+      microphone: 'prompt',
+    }
+
+    try {
+      // Check camera permission
+      if (navigator.permissions && navigator.permissions.query) {
+        const cameraPermission = await navigator.permissions.query({ name: 'camera' as PermissionName })
+        permissions.camera = cameraPermission.state
+
+        // Check microphone permission
+        const microphonePermission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        permissions.microphone = microphonePermission.state
+      }
+    } catch (error) {
+      // Some browsers don't support permissions API, default to prompt
+      console.log('Permissions API not fully supported, will request permissions')
+    }
+
+    return permissions
+  }
+
   // Get user media
   const startLocalStream = async () => {
     try {
+      // Check permissions first
+      const permissions = await checkPermissions()
+      
+      // If permissions are already granted, proceed without asking
+      // If denied, show error
+      // If prompt, browser will ask automatically
+      const needsPermission = permissions.camera === 'denied' || permissions.microphone === 'denied'
+      
+      if (needsPermission) {
+        console.error('Camera or microphone permission denied')
+        throw new Error('Camera or microphone permission denied. Please enable in browser settings.')
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: videoEnabled,
         audio: audioEnabled,
@@ -112,6 +150,7 @@ export function useWebRTC(roomId: string) {
       }
     } catch (error) {
       console.error('Error accessing media devices:', error)
+      throw error // Re-throw to handle in component
     }
   }
 
@@ -166,6 +205,7 @@ export function useWebRTC(roomId: string) {
     stopLocalStream,
     toggleVideo,
     toggleAudio,
+    checkPermissions,
   }
 }
 
