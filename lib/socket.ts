@@ -31,7 +31,7 @@ export const initializeSocket = (roomId: string): Socket => {
     console.log('✅ Socket connected:', socket?.id);
     // Join room immediately after connection
     if (roomId) {
-      console.log(' joining room:', roomId);
+      console.log('🔗 Joining room:', roomId);
       socket?.emit('join-room', { roomId });
     }
   });
