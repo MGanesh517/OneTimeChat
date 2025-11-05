@@ -12,11 +12,13 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ roomId }: ChatInterfaceProps) {
-    const { messages, sendMessage, isConnected } = useChat(roomId)
+    const { messages, sendMessage, isConnected, displayName, setDisplayName } = useChat(roomId)
     const { participantCount, socket } = useSocket()
     const router = useRouter()
     const [input, setInput] = useState('')
     const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+    const [showNamePrompt, setShowNamePrompt] = useState(false)
+    const [tempName, setTempName] = useState('')
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const scrollToBottom = () => {
@@ -47,7 +49,9 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
     }
 
     const handleReplyClick = (message: Message) => {
-        setReplyingTo(message)
+        // Flatten replies: only reference the immediate message text, never nested
+        const flat: Message = { id: message.id, text: message.text, sender: message.sender, timestamp: message.timestamp }
+        setReplyingTo(flat)
         // Scroll to input
         setTimeout(() => {
             const input = document.querySelector('input[type="text"]') as HTMLInputElement
@@ -106,6 +110,12 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                             </div>
                             <div className={`flex-1 max-w-[70%] ${message.sender === 'user' ? 'text-right' : ''
                                 }`}>
+                                {/* Receiver-only display name */}
+                                {message.sender === 'other' && (
+                                    <div className="text-xs text-hacker-green/70 font-mono mb-1">
+                                        {message.displayName || 'Anonymous'}
+                                    </div>
+                                )}
                                 <div className={`inline-block p-3 rounded-lg ${message.sender === 'user'
                                         ? 'bg-hacker-green/20 border border-hacker-green text-hacker-green'
                                         : 'bg-hacker-darker border border-hacker-border text-white'
@@ -119,9 +129,7 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                                         } pl-2 text-xs opacity-70`}>
                                             <div className="flex items-center gap-1 mb-1">
                                                 <Reply size={12} className="text-hacker-green/70" />
-                                                <span className="text-hacker-green/70 font-mono">
-                                                    {message.replyTo.sender === 'user' ? 'You' : 'Anonymous'}
-                                                </span>
+                                                <span className="text-hacker-green/70 font-mono">Reply</span>
                                             </div>
                                             <p className="text-hacker-green/60 font-mono truncate max-w-[200px]">
                                                 {message.replyTo.text}
@@ -174,6 +182,54 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                 </div>
             )}
 
+            {/* Name Prompt Modal */}
+            {showNamePrompt && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                    <div className="bg-hacker-darker border-2 border-hacker-green p-4 w-full max-w-md">
+                        <h3 className="text-hacker-green font-mono font-bold mb-2">Choose a display name</h3>
+                        <p className="text-xs text-hacker-green/70 font-mono mb-3">Shown only to others. Your own messages won’t display your name.</p>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={tempName}
+                                onChange={(e) => setTempName(e.target.value)}
+                                placeholder={displayName}
+                                className="flex-1 bg-hacker-dark border-2 border-hacker-green/50 text-white px-3 py-2 font-mono"
+                            />
+                            <button
+                                onClick={() => {
+                                    const gen = `User${Math.floor(100 + Math.random() * 900)}`
+                                    setTempName(gen)
+                                }}
+                                className="px-3 py-2 bg-hacker-green/20 border-2 border-hacker-green text-hacker-green"
+                            >
+                                Random
+                            </button>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-3">
+                            <button
+                                onClick={() => setShowNamePrompt(false)}
+                                className="px-3 py-1.5 border-2 border-hacker-border text-white/80"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const name = (tempName || displayName).trim()
+                                    const key = `otc_display_name_${roomId}`
+                                    setDisplayName(name)
+                                    if (typeof window !== 'undefined') localStorage.setItem(key, name)
+                                    setShowNamePrompt(false)
+                                }}
+                                className="px-3 py-1.5 bg-hacker-green/20 border-2 border-hacker-green text-hacker-green"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Input */}
             <div className="border-t-2 border-hacker-green p-4 bg-hacker-darker">
                 <div className="flex gap-2">
@@ -205,6 +261,13 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                     >
                         <Send size={18} />
                         <span className="font-bold">SEND</span>
+                    </button>
+                    <button
+                        onClick={() => setShowNamePrompt(true)}
+                        className="px-3 py-2 border-2 border-hacker-green text-hacker-green hover:bg-hacker-green/10 font-mono"
+                        title="Set display name"
+                    >
+                        {displayName}
                     </button>
                 </div>
             </div>

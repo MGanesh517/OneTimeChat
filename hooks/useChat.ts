@@ -6,6 +6,7 @@ export interface Message {
   text: string
   sender: 'user' | 'other'
   timestamp: Date
+  displayName?: string
   replyTo?: {
     id: string
     text: string
@@ -18,6 +19,21 @@ export function useChat(roomId: string) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const sentMessagesRef = useRef<Set<string>>(new Set()) // Track sent messages
+  const [displayName, setDisplayName] = useState<string>('')
+
+  // Initialize or load display name
+  useEffect(() => {
+    const key = `otc_display_name_${roomId}`
+    const existing = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+    if (existing && existing.trim()) {
+      setDisplayName(existing)
+    } else {
+      // Lazy-generate; UI may overwrite
+      const random = `User${Math.floor(100 + Math.random() * 900)}`
+      setDisplayName(random)
+      if (typeof window !== 'undefined') localStorage.setItem(key, random)
+    }
+  }, [roomId])
 
   useEffect(() => {
     if (!socket) return
@@ -28,6 +44,7 @@ export function useChat(roomId: string) {
       text: string
       sender: string
       timestamp: string
+      displayName?: string
     }) => {
       const messageText = data.text.trim()
       
@@ -63,6 +80,7 @@ export function useChat(roomId: string) {
           text: messageText,
           sender: 'other',
           timestamp: new Date(data.timestamp),
+          displayName: data.displayName,
           replyTo: (data as any).replyTo ? {
             id: (data as any).replyTo.id,
             text: (data as any).replyTo.text,
@@ -105,6 +123,7 @@ export function useChat(roomId: string) {
       text: trimmedText,
       sender: 'user',
       timestamp: new Date(),
+      displayName,
       replyTo: replyTo,
     }
 
@@ -115,6 +134,7 @@ export function useChat(roomId: string) {
     socket.emit('send-message', {
       roomId,
       text: trimmedText,
+      displayName,
       replyTo: replyTo ? {
         id: replyTo.id,
         text: replyTo.text,
@@ -133,6 +153,8 @@ export function useChat(roomId: string) {
     sendMessage,
     isTyping,
     isConnected,
+    displayName,
+    setDisplayName,
   }
 }
 

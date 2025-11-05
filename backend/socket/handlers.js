@@ -122,7 +122,7 @@ const socketHandlers = (io) => {
     // Send message
     socket.on('send-message', async (data) => {
       try {
-        const { roomId, text, replyTo } = data;
+        const { roomId, text, replyTo, displayName } = data;
         if (!roomId || !text) {
           socket.emit('error', { message: 'Room ID and text required' });
           return;
@@ -170,6 +170,7 @@ const socketHandlers = (io) => {
           timestamp: savedMessage.timestamp,
           roomId: upperRoomId,
           replyTo: savedMessage.replyTo,
+          displayName: displayName || 'Anonymous',
         });
 
         console.log(`💬 Message sent in room ${upperRoomId}`);
