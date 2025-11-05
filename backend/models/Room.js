@@ -14,6 +14,11 @@ const MessageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  replyTo: {
+    id: String,
+    text: String,
+    sender: String,
+  },
 }, { _id: true });
 
 const RoomSchema = new mongoose.Schema({

@@ -91,9 +91,17 @@ const socketHandlers = (io) => {
           room.participants = room.participants.filter(
             (p) => p.socketId !== socket.id
           );
-          room.participantCount = activeRooms.has(upperRoomId) 
+          const currentCount = activeRooms.has(upperRoomId) 
             ? activeRooms.get(upperRoomId).size 
             : 0;
+          room.participantCount = currentCount;
+          
+          // If no participants left, mark room as inactive
+          if (currentCount === 0) {
+            room.isActive = false;
+            console.log(`🔒 Room ${upperRoomId} marked as inactive (no participants)`);
+          }
+          
           await room.save();
         }
 
@@ -128,32 +136,40 @@ const socketHandlers = (io) => {
           return;
         }
 
-        // Create message
-        const message = {
+        // Create message object
+        const messageData = {
           text,
           sender: 'anonymous',
           timestamp: new Date(),
-          replyTo: replyTo ? {
+        };
+
+        // Add replyTo if provided
+        if (replyTo) {
+          messageData.replyTo = {
             id: replyTo.id,
             text: replyTo.text,
             sender: replyTo.sender === 'user' ? 'anonymous' : 'anonymous',
-          } : undefined,
-        };
+          };
+        }
 
-        // Save to database (optional - you can skip this for ephemeral chat)
-        room.messages.push(message);
+        // Save to database
+        room.messages.push(messageData);
         await room.save();
+        
+        // Reload room to get the saved message with _id
+        const updatedRoom = await Room.findOne({ roomId: upperRoomId });
+        const savedMessage = updatedRoom.messages[updatedRoom.messages.length - 1];
+        
+        console.log(`💾 Message saved to database. Total messages in room: ${updatedRoom.messages.length}`);
 
         // Broadcast to all in room (including sender)
-        // Get the message ID after it's saved (MongoDB will auto-generate it)
-        const savedMessage = room.messages[room.messages.length - 1];
         io.to(upperRoomId).emit('message-received', {
           id: savedMessage._id ? savedMessage._id.toString() : Date.now().toString(),
-          text: message.text,
-          sender: message.sender,
-          timestamp: message.timestamp,
+          text: savedMessage.text,
+          sender: savedMessage.sender,
+          timestamp: savedMessage.timestamp,
           roomId: upperRoomId,
-          replyTo: message.replyTo,
+          replyTo: savedMessage.replyTo,
         });
 
         console.log(`💬 Message sent in room ${upperRoomId}`);
@@ -210,6 +226,13 @@ const socketHandlers = (io) => {
               (p) => p.socketId !== socket.id
             );
             room.participantCount = socketIds.size;
+            
+            // If no participants left, mark room as inactive
+            if (socketIds.size === 0) {
+              room.isActive = false;
+              console.log(`🔒 Room ${roomId} marked as inactive (no participants)`);
+            }
+            
             await room.save();
           }
 
