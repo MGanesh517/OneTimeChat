@@ -32,6 +32,7 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
 
   useEffect(() => {
     // Initialize socket connection
+    console.log('🚀 Initializing socket for room:', roomId)
     const newSocket = initializeSocket(roomId)
     setSocket(newSocket)
 
@@ -44,12 +45,22 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
     newSocket.on('connect_error', (error) => {
       setIsConnected(false)
       console.error('❌ Connection error:', error.message)
+      console.error('Error type:', error.type)
+      console.error('Full error:', error)
     })
 
     newSocket.on('disconnect', (reason) => {
       setIsConnected(false)
       console.log('❌ Disconnected from server:', reason)
     })
+    
+    // Add connection timeout warning
+    const connectionTimeout = setTimeout(() => {
+      if (!newSocket.connected) {
+        console.warn('⏱️ Connection taking longer than expected...')
+        console.warn('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000')
+      }
+    }, 5000)
 
     // Room events
     newSocket.on('room-joined', (data: { participantCount: number }) => {
@@ -69,6 +80,7 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
 
     // Cleanup on unmount
     return () => {
+      clearTimeout(connectionTimeout)
       newSocket.emit('leave-room', { roomId })
       disconnectSocket()
     }

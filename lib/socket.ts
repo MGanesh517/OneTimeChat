@@ -15,7 +15,19 @@ export const initializeSocket = (roomId: string): Socket => {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
   
+  // Debug: Log environment variable
+  console.log('🔍 Environment check:', {
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+    backendUrl,
+    isClient: typeof window !== 'undefined'
+  });
+  
   console.log('🔌 Connecting to backend:', backendUrl);
+  
+  // Validate URL
+  if (!backendUrl || backendUrl === 'http://localhost:5000') {
+    console.warn('⚠️ Using default backend URL. Make sure NEXT_PUBLIC_BACKEND_URL is set in Vercel!');
+  }
   
   socket = io(backendUrl, {
     transports: ['websocket', 'polling'],
