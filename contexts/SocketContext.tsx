@@ -41,9 +41,14 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
       console.log('✅ Connected to server')
     })
 
-    newSocket.on('disconnect', () => {
+    newSocket.on('connect_error', (error) => {
       setIsConnected(false)
-      console.log('❌ Disconnected from server')
+      console.error('❌ Connection error:', error.message)
+    })
+
+    newSocket.on('disconnect', (reason) => {
+      setIsConnected(false)
+      console.log('❌ Disconnected from server:', reason)
     })
 
     // Room events
