@@ -133,7 +133,6 @@ const socketHandlers = (io) => {
           text,
           sender: 'anonymous',
           timestamp: new Date(),
-          _id: require('mongoose').Types.ObjectId(),
         };
 
         // Save to database (optional - you can skip this for ephemeral chat)
@@ -141,8 +140,10 @@ const socketHandlers = (io) => {
         await room.save();
 
         // Broadcast to all in room (including sender)
+        // Get the message ID after it's saved (MongoDB will auto-generate it)
+        const savedMessage = room.messages[room.messages.length - 1];
         io.to(upperRoomId).emit('message-received', {
-          id: message._id.toString(),
+          id: savedMessage._id ? savedMessage._id.toString() : Date.now().toString(),
           text: message.text,
           sender: message.sender,
           timestamp: message.timestamp,
