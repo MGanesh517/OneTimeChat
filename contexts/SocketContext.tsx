@@ -45,7 +45,6 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
     newSocket.on('connect_error', (error) => {
       setIsConnected(false)
       console.error('❌ Connection error:', error.message)
-      console.error('Error type:', error.type)
       console.error('Full error:', error)
     })
 
