@@ -23,13 +23,31 @@ export function useChat(roomId: string) {
       sender: string
       timestamp: string
     }) => {
-      const newMessage: Message = {
-        id: data.id,
-        text: data.text,
-        sender: 'other', // In real implementation, compare with current user
-        timestamp: new Date(data.timestamp),
-      }
-      setMessages((prev) => [...prev, newMessage])
+      const messageTime = new Date(data.timestamp).getTime()
+      
+      // Check if this message already exists (deduplicate)
+      // This prevents duplicate messages when sender's own message is broadcast back
+      setMessages((prev) => {
+        // Check if message with same text and similar timestamp already exists
+        const isDuplicate = prev.some(msg => {
+          const timeDiff = Math.abs(msg.timestamp.getTime() - messageTime)
+          return msg.text === data.text && timeDiff < 2000 // Within 2 seconds
+        })
+        
+        if (isDuplicate) {
+          // Message already exists, don't add it again
+          return prev
+        }
+        
+        // This is a new message from another user
+        const newMessage: Message = {
+          id: data.id,
+          text: data.text,
+          sender: 'other',
+          timestamp: new Date(data.timestamp),
+        }
+        return [...prev, newMessage]
+      })
     }
 
     socket.on('message-received', handleMessage)
