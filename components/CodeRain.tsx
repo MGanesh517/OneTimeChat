@@ -25,6 +25,8 @@ export default function CodeRain() {
         }
 
         function draw() {
+            if (!ctx) return
+            
             ctx.fillStyle = 'rgba(5, 5, 5, 0.05)'
             ctx.fillRect(0, 0, canvas.width, canvas.height)
 
