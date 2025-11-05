@@ -44,7 +44,14 @@ function RoomContent() {
           
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-hacker-green animate-pulse-green' : 'bg-hacker-error'}`}></div>
-            <span className="text-hacker-text font-mono text-sm">{isConnected ? 'CONNECTED' : 'CONNECTING...'}</span>
+            <span className="text-hacker-text font-mono text-sm">
+              {isConnected ? 'CONNECTED' : 'CONNECTING...'}
+            </span>
+            {!isConnected && (
+              <span className="text-xs text-hacker-error/70 font-mono">
+                (Check console for details)
+              </span>
+            )}
           </div>
         </motion.div>
 

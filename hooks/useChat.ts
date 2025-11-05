@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSocket } from '@/contexts/SocketContext'
 
 export interface Message {
@@ -12,6 +12,7 @@ export function useChat(roomId: string) {
   const { socket, isConnected } = useSocket()
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
+  const sentMessagesRef = useRef<Set<string>>(new Set()) // Track sent messages
 
   useEffect(() => {
     if (!socket) return
@@ -23,26 +24,38 @@ export function useChat(roomId: string) {
       sender: string
       timestamp: string
     }) => {
-      const messageTime = new Date(data.timestamp).getTime()
+      const messageText = data.text.trim()
       
-      // Check if this message already exists (deduplicate)
-      // This prevents duplicate messages when sender's own message is broadcast back
+      // Check if this is a message we just sent (deduplicate)
+      // If we sent this message recently, don't add it as 'other'
+      if (sentMessagesRef.current.has(messageText)) {
+        // This is our own message being broadcast back - ignore it
+        console.log('🔄 Ignoring duplicate (our own message):', messageText)
+        // Remove from tracking after a delay
+        setTimeout(() => {
+          sentMessagesRef.current.delete(messageText)
+        }, 3000)
+        return
+      }
+      
+      // Check if message already exists in the list (double check)
       setMessages((prev) => {
-        // Check if message with same text and similar timestamp already exists
+        const messageTime = new Date(data.timestamp).getTime()
         const isDuplicate = prev.some(msg => {
           const timeDiff = Math.abs(msg.timestamp.getTime() - messageTime)
-          return msg.text === data.text && timeDiff < 2000 // Within 2 seconds
+          return msg.text === messageText && timeDiff < 3000 // Within 3 seconds
         })
         
         if (isDuplicate) {
-          // Message already exists, don't add it again
+          console.log('🔄 Ignoring duplicate (already in list):', messageText)
           return prev
         }
         
         // This is a new message from another user
+        console.log('✅ New message from other user:', messageText)
         const newMessage: Message = {
           id: data.id,
-          text: data.text,
+          text: messageText,
           sender: 'other',
           timestamp: new Date(data.timestamp),
         }
@@ -72,9 +85,14 @@ export function useChat(roomId: string) {
   const sendMessage = (text: string) => {
     if (!socket || !isConnected || !text.trim()) return
 
+    const trimmedText = text.trim()
+    
+    // Track this message as sent by us
+    sentMessagesRef.current.add(trimmedText)
+    
     const message: Message = {
       id: Date.now().toString(),
-      text: text.trim(),
+      text: trimmedText,
       sender: 'user',
       timestamp: new Date(),
     }
@@ -85,8 +103,13 @@ export function useChat(roomId: string) {
     // Send to server
     socket.emit('send-message', {
       roomId,
-      text: text.trim(),
+      text: trimmedText,
     })
+    
+    // Clean up tracking after 5 seconds (message should be processed by then)
+    setTimeout(() => {
+      sentMessagesRef.current.delete(trimmedText)
+    }, 5000)
   }
 
   return {

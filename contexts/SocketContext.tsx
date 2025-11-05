@@ -9,6 +9,7 @@ interface SocketContextType {
   isConnected: boolean
   roomId: string | null
   participantCount: number
+  connectionError: string | null
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -16,6 +17,7 @@ const SocketContext = createContext<SocketContextType>({
   isConnected: false,
   roomId: null,
   participantCount: 0,
+  connectionError: null,
 })
 
 export const useSocket = () => useContext(SocketContext)
@@ -29,6 +31,7 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [participantCount, setParticipantCount] = useState(0)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   useEffect(() => {
     // Initialize socket connection
@@ -36,21 +39,33 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
     const newSocket = initializeSocket(roomId)
     setSocket(newSocket)
 
+    // Check initial connection state
+    if (newSocket.connected) {
+      setIsConnected(true)
+    }
+
     // Connection event handlers
     newSocket.on('connect', () => {
       setIsConnected(true)
+      setConnectionError(null)
       console.log('✅ Connected to server')
     })
 
     newSocket.on('connect_error', (error) => {
       setIsConnected(false)
-      console.error('❌ Connection error:', error.message)
+      const errorMsg = error.message || 'Connection failed'
+      setConnectionError(errorMsg)
+      console.error('❌ Connection error:', errorMsg)
+      console.error('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000')
       console.error('Full error:', error)
     })
 
     newSocket.on('disconnect', (reason) => {
       setIsConnected(false)
       console.log('❌ Disconnected from server:', reason)
+      if (reason === 'transport error' || reason === 'ping timeout') {
+        setConnectionError('Connection lost. Reconnecting...')
+      }
     })
     
     // Add connection timeout warning
@@ -58,8 +73,14 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
       if (!newSocket.connected) {
         console.warn('⏱️ Connection taking longer than expected...')
         console.warn('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000')
+        console.warn('Socket state:', newSocket.connected ? 'connected' : 'disconnected')
+        if (!process.env.NEXT_PUBLIC_BACKEND_URL) {
+          setConnectionError('Backend URL not configured. Check Vercel environment variables.')
+        } else {
+          setConnectionError('Connection timeout. Check backend server.')
+        }
       }
-    }, 5000)
+    }, 10000) // 10 seconds
 
     // Room events
     newSocket.on('room-joined', (data: { participantCount: number }) => {
@@ -85,13 +106,14 @@ export function SocketProvider({ children, roomId }: SocketProviderProps) {
     }
   }, [roomId])
 
-  return (
+    return (
     <SocketContext.Provider
       value={{
         socket,
         isConnected,
         roomId,
         participantCount,
+        connectionError,
       }}
     >
       {children}
