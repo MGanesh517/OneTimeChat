@@ -6,6 +6,11 @@ export interface Message {
   text: string
   sender: 'user' | 'other'
   timestamp: Date
+  replyTo?: {
+    id: string
+    text: string
+    sender: 'user' | 'other'
+  }
 }
 
 export function useChat(roomId: string) {
@@ -58,6 +63,11 @@ export function useChat(roomId: string) {
           text: messageText,
           sender: 'other',
           timestamp: new Date(data.timestamp),
+          replyTo: (data as any).replyTo ? {
+            id: (data as any).replyTo.id,
+            text: (data as any).replyTo.text,
+            sender: (data as any).replyTo.sender === 'anonymous' ? 'other' : (data as any).replyTo.sender,
+          } : undefined,
         }
         return [...prev, newMessage]
       })
@@ -82,7 +92,7 @@ export function useChat(roomId: string) {
     }
   }, [socket, messages.length])
 
-  const sendMessage = (text: string) => {
+  const sendMessage = (text: string, replyTo?: { id: string; text: string; sender: 'user' | 'other' }) => {
     if (!socket || !isConnected || !text.trim()) return
 
     const trimmedText = text.trim()
@@ -95,6 +105,7 @@ export function useChat(roomId: string) {
       text: trimmedText,
       sender: 'user',
       timestamp: new Date(),
+      replyTo: replyTo,
     }
 
     // Optimistically add message
@@ -104,6 +115,11 @@ export function useChat(roomId: string) {
     socket.emit('send-message', {
       roomId,
       text: trimmedText,
+      replyTo: replyTo ? {
+        id: replyTo.id,
+        text: replyTo.text,
+        sender: replyTo.sender,
+      } : undefined,
     })
     
     // Clean up tracking after 5 seconds (message should be processed by then)

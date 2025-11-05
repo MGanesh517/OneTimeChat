@@ -114,7 +114,7 @@ const socketHandlers = (io) => {
     // Send message
     socket.on('send-message', async (data) => {
       try {
-        const { roomId, text } = data;
+        const { roomId, text, replyTo } = data;
         if (!roomId || !text) {
           socket.emit('error', { message: 'Room ID and text required' });
           return;
@@ -133,6 +133,11 @@ const socketHandlers = (io) => {
           text,
           sender: 'anonymous',
           timestamp: new Date(),
+          replyTo: replyTo ? {
+            id: replyTo.id,
+            text: replyTo.text,
+            sender: replyTo.sender === 'user' ? 'anonymous' : 'anonymous',
+          } : undefined,
         };
 
         // Save to database (optional - you can skip this for ephemeral chat)
@@ -148,6 +153,7 @@ const socketHandlers = (io) => {
           sender: message.sender,
           timestamp: message.timestamp,
           roomId: upperRoomId,
+          replyTo: message.replyTo,
         });
 
         console.log(`💬 Message sent in room ${upperRoomId}`);
