@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f0" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#00ff88" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#050d08"/>
+  <g opacity="0.2" stroke="#00ff88" stroke-width="2">
+    <path d="M32 64h448M32 128h448M32 192h448M32 256h448M32 320h448M32 384h448M32 448h448"/>
+    <path d="M64 32v448M128 32v448M192 32v448M256 32v448M320 32v448M384 32v448M448 32v448"/>
+  </g>
+  <g transform="translate(256 256)">
+    <circle r="120" fill="none" stroke="url(#g)" stroke-width="14"/>
+    <path d="M-70 -10 L-10 -70 L10 -50 L-30 -10 L10 30 L-10 50 Z" fill="url(#g)"/>
+    <rect x="20" y="-18" width="110" height="36" rx="6" fill="#031a12" stroke="#00ff88" stroke-width="4"/>
+    <text x="75" y="6" text-anchor="middle" font-family="monospace" font-size="20" fill="#00ff88">OTC</text>
+  </g>
+</svg>
+
