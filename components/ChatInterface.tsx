@@ -29,6 +29,20 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
         scrollToBottom()
     }, [messages])
 
+    // Auto-show name prompt if no name is set
+    useEffect(() => {
+        if (isConnected && !displayName.trim()) {
+            const key = `otc_display_name_${roomId}`
+            const saved = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+            if (!saved || !saved.trim()) {
+                // Auto-generate and show prompt
+                const random = `User${Math.floor(100 + Math.random() * 900)}`
+                setTempName(random)
+                setShowNamePrompt(true)
+            }
+        }
+    }, [isConnected, displayName, roomId])
+
     const handleSend = () => {
         if (input.trim() && isConnected) {
             sendMessage(input, replyingTo ? {
@@ -99,8 +113,8 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                                 }`}
                         >
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${message.sender === 'user'
-                                    ? 'bg-hacker-green/20 border border-hacker-green'
-                                    : 'bg-hacker-border border border-hacker-green/50'
+                                ? 'bg-hacker-green/20 border border-hacker-green'
+                                : 'bg-hacker-border border border-hacker-green/50'
                                 }`}>
                                 {message.sender === 'user' ? (
                                     <User className="text-hacker-green" size={16} />
@@ -117,16 +131,15 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                                     </div>
                                 )}
                                 <div className={`inline-block p-3 rounded-lg ${message.sender === 'user'
-                                        ? 'bg-hacker-green/20 border border-hacker-green text-hacker-green'
-                                        : 'bg-hacker-darker border border-hacker-border text-white'
+                                    ? 'bg-hacker-green/20 border border-hacker-green text-hacker-green'
+                                    : 'bg-hacker-darker border border-hacker-border text-white'
                                     }`}>
                                     {/* Reply Preview */}
                                     {message.replyTo && (
-                                        <div className={`mb-2 pb-2 border-l-2 ${
-                                            message.replyTo.sender === 'user' 
-                                                ? 'border-hacker-green/50' 
-                                                : 'border-hacker-border/50'
-                                        } pl-2 text-xs opacity-70`}>
+                                        <div className={`mb-2 pb-2 border-l-2 ${message.replyTo.sender === 'user'
+                                            ? 'border-hacker-green/50'
+                                            : 'border-hacker-border/50'
+                                            } pl-2 text-xs opacity-70`}>
                                             <div className="flex items-center gap-1 mb-1">
                                                 <Reply size={12} className="text-hacker-green/70" />
                                                 <span className="text-hacker-green/70 font-mono">Reply</span>
@@ -245,10 +258,10 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                             }
                         }}
                         placeholder={
-                            replyingTo 
-                                ? `Reply to: ${replyingTo.text.substring(0, 30)}...` 
-                                : isConnected 
-                                    ? "Type your message..." 
+                            replyingTo
+                                ? `Reply to: ${replyingTo.text.substring(0, 30)}...`
+                                : isConnected
+                                    ? "Type your message..."
                                     : "Connecting..."
                         }
                         disabled={!isConnected}
