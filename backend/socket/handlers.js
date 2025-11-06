@@ -85,24 +85,43 @@ const socketHandlers = (io) => {
           }
         }
 
-        // Update room in database
-        const room = await Room.findOne({ roomId: upperRoomId });
-        if (room) {
-          room.participants = room.participants.filter(
-            (p) => p.socketId !== socket.id
+        // Update room in database using atomic operation to avoid version conflicts
+        const currentCount = activeRooms.has(upperRoomId) 
+          ? activeRooms.get(upperRoomId).size 
+          : 0;
+        
+        try {
+          await Room.findOneAndUpdate(
+            { roomId: upperRoomId },
+            {
+              $pull: { participants: { socketId: socket.id } },
+              $set: {
+                participantCount: currentCount,
+                isActive: currentCount > 0,
+              }
+            },
+            { new: true }
           );
-          const currentCount = activeRooms.has(upperRoomId) 
-            ? activeRooms.get(upperRoomId).size 
-            : 0;
-          room.participantCount = currentCount;
           
-          // If no participants left, mark room as inactive
           if (currentCount === 0) {
-            room.isActive = false;
             console.log(`🔒 Room ${upperRoomId} marked as inactive (no participants)`);
           }
-          
-          await room.save();
+        } catch (error) {
+          console.error('Error updating room on leave:', error);
+          // Fallback: try to reload and update
+          try {
+            const room = await Room.findOne({ roomId: upperRoomId });
+            if (room) {
+              room.participants = room.participants.filter(
+                (p) => p.socketId !== socket.id
+              );
+              room.participantCount = currentCount;
+              room.isActive = currentCount > 0;
+              await room.save();
+            }
+          } catch (fallbackError) {
+            console.error('Fallback update also failed:', fallbackError);
+          }
         }
 
         // Notify others
@@ -220,21 +239,39 @@ const socketHandlers = (io) => {
             activeRooms.delete(roomId);
           }
 
-          // Update database
-          const room = await Room.findOne({ roomId });
-          if (room) {
-            room.participants = room.participants.filter(
-              (p) => p.socketId !== socket.id
+          // Update database using atomic operation to avoid version conflicts
+          try {
+            await Room.findOneAndUpdate(
+              { roomId },
+              {
+                $pull: { participants: { socketId: socket.id } },
+                $set: {
+                  participantCount: socketIds.size,
+                  isActive: socketIds.size > 0,
+                }
+              },
+              { new: true }
             );
-            room.participantCount = socketIds.size;
             
-            // If no participants left, mark room as inactive
             if (socketIds.size === 0) {
-              room.isActive = false;
               console.log(`🔒 Room ${roomId} marked as inactive (no participants)`);
             }
-            
-            await room.save();
+          } catch (error) {
+            console.error('Error updating room on disconnect:', error);
+            // Fallback: try to reload and update
+            try {
+              const room = await Room.findOne({ roomId });
+              if (room) {
+                room.participants = room.participants.filter(
+                  (p) => p.socketId !== socket.id
+                );
+                room.participantCount = socketIds.size;
+                room.isActive = socketIds.size > 0;
+                await room.save();
+              }
+            } catch (fallbackError) {
+              console.error('Fallback update also failed:', fallbackError);
+            }
           }
 
           // Notify others

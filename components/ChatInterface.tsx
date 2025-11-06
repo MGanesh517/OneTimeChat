@@ -6,6 +6,7 @@ import { Send, User, Bot, Reply, X } from 'lucide-react'
 import { useChat, Message } from '@/hooks/useChat'
 import { useSocket } from '@/contexts/SocketContext'
 import { useRouter } from 'next/navigation'
+import EndChatModal from '@/components/EndChatModal'
 
 interface ChatInterfaceProps {
     roomId: string
@@ -18,6 +19,7 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
     const [input, setInput] = useState('')
     const [replyingTo, setReplyingTo] = useState<Message | null>(null)
     const [showNamePrompt, setShowNamePrompt] = useState(false)
+    const [showEndChatModal, setShowEndChatModal] = useState(false)
     const [tempName, setTempName] = useState('')
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -56,9 +58,14 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
     }
 
     const handleEndChat = () => {
+        setShowEndChatModal(true)
+    }
+
+    const confirmEndChat = () => {
         if (socket) {
             socket.emit('leave-room', { roomId })
         }
+        setShowEndChatModal(false)
         router.push('/')
     }
 
@@ -284,6 +291,14 @@ export default function ChatInterface({ roomId }: ChatInterfaceProps) {
                     </button>
                 </div>
             </div>
+
+            {/* End Chat Modal */}
+            <EndChatModal
+                isOpen={showEndChatModal}
+                onConfirm={confirmEndChat}
+                onCancel={() => setShowEndChatModal(false)}
+                roomId={roomId}
+            />
         </div>
     )
 }

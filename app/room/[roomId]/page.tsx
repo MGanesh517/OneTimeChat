@@ -1,12 +1,13 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import CodeRain from '@/components/CodeRain'
 import ChatInterface from '@/components/ChatInterface'
 import VideoCallInterface from '@/components/VideoCallInterface'
 import GlitchText from '@/components/GlitchText'
+import RoomEntryAnimation from '@/components/RoomEntryAnimation'
 import { SocketProvider, useSocket } from '@/contexts/SocketContext'
 import { ArrowLeft, Video, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -17,10 +18,26 @@ function RoomContent() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'chat' | 'video'>('chat')
   const { isConnected } = useSocket()
+  const [showEntryAnimation, setShowEntryAnimation] = useState(true)
+
+  useEffect(() => {
+    // Show animation only once when component mounts
+    const timer = setTimeout(() => {
+      setShowEntryAnimation(false)
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-hacker-darker">
       <CodeRain />
+      
+      {showEntryAnimation && (
+        <RoomEntryAnimation
+          roomId={roomId}
+          onComplete={() => setShowEntryAnimation(false)}
+        />
+      )}
       
       <div className="relative z-10 container mx-auto px-4 py-6 h-screen flex flex-col">
         {/* Header */}
